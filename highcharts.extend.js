@@ -1,19 +1,15 @@
 /**
- *
  *  基于SVG的表格数据展示插件封装及生成Highcharts所需数据格式的JSON方法封装
  *  build by rwsong @2015-03-02
  *  mail:rw_Song@sina.com
- *
  */
 
 !function (win, $, u) {
 
     /**
-     *
+     * 拓展jQuery下创建SVG的方法
      * @param tagName string
      * @returns SVGElement
-     *
-     * 拓展jQuery下创建SVG的方法
      */
     $.svg = function $svg(tagName) {
         var svgns = "http://www.w3.org/2000/svg";
@@ -21,11 +17,9 @@
     };
 
     /**
-     *
+     * Table 对象的构造方法
      * @param opt  JSON
      * @constructor
-     *
-     * Table 对象的构造方法
      */
     function Table(opt) {
 
@@ -73,7 +67,7 @@
 
     /**
      * Table原型下返回SVG标签字符串给后端处理后导出
-     * @returns string
+     * @returns {XML|string|void}
      */
     Table.prototype.getSVG = function () {
         var self = this,
@@ -82,10 +76,9 @@
     };
 
     /**
-     *
+     * 创建一个容器div,并随着窗口大小自适应的方法
      * @param s object
      * return function
-     * 创建一个容器div,并随着窗口大小自适应的方法
      */
     function initContainer(s) {
         return function (s) {
@@ -100,10 +93,8 @@
     }
 
     /**
-     *
-     * @param s object
-     *
      * 创建svg元素,用于显示
+     * @param s object
      */
     function initSVG(s) {
         var container = s["rendObj"].find("div.highcharts-table-container"),
@@ -125,7 +116,8 @@
             "height": s["height"],
             "fill": "none",
             "stroke": "#000",
-            "stroke-opacity": 1
+            "stroke-opacity": 1,
+            "stoke-width":1
         });
         s.svgNode.append(rect);
         //  整个大容器
@@ -146,18 +138,7 @@
             "y": 20
         }).html(s["title"]);
         s.svgNode.append(text);
-        //  表格头
-
-        var path = $.svg("path");
-        path.attr({
-            "fill": "none",
-            "stroke": "#000",
-            "stroke-width": 1,
-            "stroke-opacity": 1,
-            "d": "M 0 40 L " + s.width + " 40"
-        });
-        s.svgNode.append(path);
-        //  绘制表格外框、分割线和文字
+        //  表格头、外框和文字
 
         var lineLens = s["data"].length,
             g = $.svg("g"),
@@ -167,17 +148,25 @@
             "class": "table-rows"
         });
         for (var i = 0; i < s["yData"].length + 1; i++) {
-
-            console.log(s["ySize"][i]);
-
-            var top = (s["height"] - 40) / (s["yData"].length + 1) * (i) + 40,
+            var top = (s["height"] - 40) / (s["yData"].length + 1) * (i) + 30,
                 bottom = top + (s["height"] - 40) / (s["yData"].length + 1);
+            if(i == 0){
+                top = 40;
+                bottom = 100;
+            }
+            if(i >= 2 && s["ySize"].length > 0 && s["ySize"][i - 1]){
+                top = rows[i - 1]["bottom"];
+                bottom = top + s["ySize"][i - 1];
+            }
+            //  从数据展示区域开始,开始刚才算出来表格的行高,并且更新top和bottom
+
             path = $.svg("path");
             path.attr({
                 "fill": "none",
                 "stroke": "#000",
                 "stroke-width": 1,
                 "stroke-opacity": 1,
+                "stoke-width":1,
                 "d": "M 0 " + top + " L " + s["width"] + " " + top
             });
             rows.push({
@@ -220,7 +209,6 @@
             if(s["xSize"].length > 0 && s["xSize"][i] && i >= 1){
                 cols.push({
                 	 "left": left*2 || 0,
-                	//"left": (s["xSize"][i - 1]) || 0,
                     "right": s["xSize"][i]
                 });
             }else if(s["xSize"].length == 0){
@@ -239,34 +227,6 @@
         g.attr({
             "class": "xAxis"
         });
-
-        if(s["kinds"]){
-            //  如果左上角指定了类型
-            
-            g = $.svg("g");
-            g.attr({
-                "class": "left-top"
-            });
-            var top = 40,
-                left = 0,
-                right = cols[0]["right"],
-                bottom = rows[0]["bottom"];
-
-            for(var i  = 0,len = s["kinds"].length;i < len;i ++){
-                var line = $.svg("line");
-                line.attr({
-                    "x1":0,
-                    "y1":0,
-                    "x2":right,
-                    "y2":bottom,
-                    "stoke":"#000"
-                });
-
-                g.append(line);
-            }
-            s.svgNode.append(g);
-        }
-
         for (var i = 1; i <= s["xData"].length; i++) {
             var x = 0,
                 y = 0;
@@ -332,41 +292,73 @@
         g.attr({
             "class": "data-area"
         });
-
         for (var i = 0; i < s["data"].length; i++) {
             var left = (parseInt(cols[i + 1]["left"]) + parseInt(cols[i + 1]["right"])) / 2;
             (function (d, x) {
                 for (var j = 0; j < d.length; j++) {
-                    var y = (parseInt(rows[j + 1]["top"]) + parseInt(rows[j + 1]["bottom"])) / 2;
-                    
-                    text = $.svg("text");
-                    text.attr({
-                        "xml:space": "preserve",
-                        "display" : "inline-block",
-                        "width": s["width"],
-                        "height": 40,
-                        "text-anchor": "middle",
-                        "dominant-baseline": "middle",
-                        "font-family": "SimSun",
-                        "font-weight": "100",
-                        "font-size": 20,        //内容
-                        "fill-opacity": 1,
-                        "stroke": "#000",
-                        "x": x,
-                        "y": y
-                    }).html(d[j]);
-                    g.append(text);
+                    var y = (parseInt(rows[j + 1]["top"]) + parseInt(rows[j + 1]["bottom"])) / 2,
+                        type = getType(d[j]);
+                    if(type == "string"){
+                        text = $.svg("text");
+                        text.attr({
+                            "xml:space": "preserve",
+                            "display" : "inline-block",
+                            "width": s["width"],
+                            "height": 40,
+                            "text-anchor": "middle",
+                            "dominant-baseline": "middle",
+                            "font-family": "SimSun",
+                            "font-weight": "100",
+                            "font-size": 20,        //内容
+                            "fill-opacity": 1,
+                            "stroke": "#000",
+                            "x": x,
+                            "y": y
+                        }).html(d[j]);
+                        g.append(text);
+                    }else if(type == "array"){
+                        var len = d[j].length,
+                            top = parseInt(rows[j + 1]["top"]),
+                            bottom = parseInt(rows[j + 1]["bottom"]),
+                            cellH = bottom - top,
+                            eachH = cellH / len,
+                            yPos = 0,
+                            textCollection = $.svg("g");
+                        textCollection.attr({
+                            "class":"collection-" + j
+                        });
+                        $.each(d[j],function(k,ele){
+                            text = $.svg("text");
+                            text.attr({
+                                "xml:space": "preserve",
+                                "display" : "inline-block",
+                                "width": s["width"],
+                                "height": 40,
+                                "text-anchor": "middle",
+                                "dominant-baseline": "middle",
+                                "font-family": "SimSun",
+                                "font-weight": "100",
+                                "font-size": 20,        //内容
+                                "fill-opacity": 1,
+                                "stroke": "#000",
+                                "x": x,
+                                "y": top + eachH / 2 + eachH * k    //  根据当前第几行动态计算y属性值
+                            }).html(d[j][k]);
+                            textCollection.append(text);
+                        });
+                        //  把所有的文字再用一个g标签组合起来
+                        g.append(textCollection);
+                    }
                 }
             })(s["data"][i]["data"], left);
         }
         s.svgNode.append(g);
+        //  表格的数据展示区域
     }
 
     /**
-     *
-     * @param table object
-     *
      * 检测表格的数据结构,修改表格的高度
+     * @param table
      */
     function initTableSize(table){
         var data = table["data"],           //  表格的数据
@@ -385,38 +377,36 @@
 
                 if(subItem.length * 20 > cellW){
                     var curLen = subItem.length,                //  当前数据字数
-                        maxLen = Math.floor(cellW / 20),        //  当前单元格最多支持多少个数字
+                        maxLen = Math.floor((cellW - 60) / 20),        //  当前单元格最多支持多少个数字
                         tmp = [],                               //  临时数组,缓存被切割后的字符串
                         cutTime = Math.ceil(curLen / maxLen);   //  总共需要切割多少次
 
                     for(var i = 0;i < cutTime;i ++){
-                        tmp.push(subItem.substr(i * maxLen,Math.min((i + 1) * maxLen,curLen)));
+                        tmp.push(subItem.substring(i * maxLen,Math.min((i + 1) * maxLen,curLen)));
                     }
                     supItem["data"][subIndex] = tmp;
                     //  再重新回写到数据中
 
-                    ySize[subIndex] = 30 * cutTime;
+                    ySize[subIndex] = 35 * cutTime;
                     //  切了多少次,乘以30
                 }else{
                     supItem["data"][subIndex] = subItem;
-                    if(!ySize[subIndex] || ySize[subItem] < 30){
-                        ySize[subIndex] = 30;  
+                    if(!ySize[subIndex] || ySize[subItem] < 35){
+                        ySize[subIndex] = 35;
                     }
                     //  如果当前单元格没有超出显示内容,就默认正常高
                 }
             });
         });
 
-        table.height = getSum(table["ySize"]);
-        table.rendObj.height(tab.height);
+        table.height = getSum(table["ySize"]) + 130;
+        table.rendObj.height((table.height + 130));
     }
 
     /**
-     *
-     * @param arr array
-     * @returns {number}
-     *
      * 数组求和
+     * @param arr
+     * @returns {number}
      */
     function getSum(arr){
         var sum = 0;
@@ -435,16 +425,15 @@
     }
 
     /**
-     *
+     * 通过对象原型获取数据类型,比typeof靠谱
      * @param object
      * @returns {string}
-     *
-     * 通过对象原型获取数据类型,比typeof靠谱
      */
     function getType(obj){
         return Object.prototype.toString.call(obj).toLowerCase().replace(/\[|object|\]|\s/g,'');
     }
 
     win.Table = Table;
+    //  暴露给window
 
 }(window, jQuery, undefined);
